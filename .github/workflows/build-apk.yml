@@ -37,18 +37,21 @@ jobs:
         run: |
           set -o pipefail
           flutter build apk --release 2>&1 | tee build.log || true
-          echo "=== build 下所有 apk ==="
-          find build -type f -name "*.apk" | sort || true
-          echo "=== outputs 目录 ==="
-          find build/app/outputs -maxdepth 3 -type f 2>/dev/null | head -n 40 || true
+          echo "=========== 仓库根目录 ==========="
+          ls -la
+          echo "=========== 所有 build 目录 ==========="
+          find . -path ./.git -prune -o -type d -name build -print || true
+          echo "=========== 整个工作区的 apk ==========="
+          find . -path ./.git -prune -o -type f -name "*.apk" -print | sort || true
           mkdir -p out
-          find build -type f -name "*.apk" -exec cp -v {} out/ \; || true
+          find . -path ./.git -prune -o -type f -name "*.apk" -print -exec cp -v {} out/ \; || true
+          echo "=========== out 目录 ==========="
           ls -lh out || true
 
       - name: 校验产物
         run: |
           if [ -z "$(ls -A out 2>/dev/null)" ]; then
-            echo "::error::out/ 里没有 apk，请把 build-log 工件发给维护者"
+            echo "::error::整个工作区都没有 apk，见上面『所有 build 目录』与 build-log"
             exit 1
           fi
 
