@@ -23,11 +23,24 @@ jobs:
           channel: stable
           cache: true
 
+      - name: 换官方 Gradle 下载源
+        run: |
+          sed -i 's|mirrors.cloud.tencent.com/gradle/|services.gradle.org/distributions/|' android/gradle/wrapper/gradle-wrapper.properties
+          sed -i 's|gradle-8.3-all.zip|gradle-8.3-bin.zip|' android/gradle/wrapper/gradle-wrapper.properties
+          cat android/gradle/wrapper/gradle-wrapper.properties
+
+      - name: 换官方 Maven 源
+        run: |
+          sed -i '/maven.aliyun.com/d' android/build.gradle
+          sed -i '/maven.aliyun.com/d' android/settings.gradle
+          echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> android/gradle.properties
+          echo "--- settings.gradle ---" && cat android/settings.gradle
+
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build release APK
-        run: flutter build apk --release
+        run: set -o pipefail; flutter build apk --release 2>&1 | tee build.log
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -35,3 +48,11 @@ jobs:
           name: huangguo-vip-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 7
