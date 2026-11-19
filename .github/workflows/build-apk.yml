@@ -7,17 +7,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: zulu
           java-version: "17"
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.24.5"
           channel: stable
@@ -27,32 +24,43 @@ jobs:
         run: |
           sed -i 's|mirrors.cloud.tencent.com/gradle/|services.gradle.org/distributions/|' android/gradle/wrapper/gradle-wrapper.properties
           sed -i 's|gradle-8.3-all.zip|gradle-8.3-bin.zip|' android/gradle/wrapper/gradle-wrapper.properties
-          cat android/gradle/wrapper/gradle-wrapper.properties
 
       - name: 换官方 Maven 源
         run: |
           sed -i '/maven.aliyun.com/d' android/build.gradle
           sed -i '/maven.aliyun.com/d' android/settings.gradle
           echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> android/gradle.properties
-          echo "--- settings.gradle ---" && cat android/settings.gradle
 
-      - name: Install dependencies
-        run: flutter pub get
+      - run: flutter pub get
 
       - name: Build release APK
-        run: set -o pipefail; flutter build apk --release 2>&1 | tee build.log
+        run: |
+          set -o pipefail
+          flutter build apk --release 2>&1 | tee build.log || true
+          echo "=== build 下所有 apk ==="
+          find build -type f -name "*.apk" | sort || true
+          echo "=== outputs 目录 ==="
+          find build/app/outputs -maxdepth 3 -type f 2>/dev/null | head -n 40 || true
+          mkdir -p out
+          find build -type f -name "*.apk" -exec cp -v {} out/ \; || true
+          ls -lh out || true
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: 校验产物
+        run: |
+          if [ -z "$(ls -A out 2>/dev/null)" ]; then
+            echo "::error::out/ 里没有 apk，请把 build-log 工件发给维护者"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: huangguo-vip-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 30
+          path: out/*.apk
+          if-no-files-found: warn
 
-      - name: Upload build log
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
           name: build-log
           path: build.log
-          retention-days: 7
