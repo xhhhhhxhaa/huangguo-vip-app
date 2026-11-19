@@ -1,5 +1,20 @@
 pluginManagement {
-    def flutterSdkPath = new File("/vol1/@appshare/octop-native/data/.octop/agents/alan/flutter-sdk").getAbsolutePath()
+    def flutterSdkPath = {
+        def properties = new Properties()
+        def localPropertiesFile = file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.withInputStream { properties.load(it) }
+        }
+        def sdkPath = properties.getProperty("flutter.sdk")
+        if (sdkPath == null || sdkPath.isEmpty()) {
+            sdkPath = System.getenv("FLUTTER_ROOT")
+        }
+        if (sdkPath == null || sdkPath.isEmpty()) {
+            throw new GradleException("找不到 Flutter SDK：local.properties 未设置 flutter.sdk，FLUTTER_ROOT 也没有")
+        }
+        return sdkPath
+    }()
+
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
     repositories {
